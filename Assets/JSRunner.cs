@@ -2,9 +2,12 @@
 using ChakraHost.Hosting;
 using System;
 using System.Runtime.InteropServices;
+using System.Collections;
 
-public class HelloWorld : MonoBehaviour {
+public class JSRunner : MonoBehaviour {
 
+  public string url = "http://localhost:3000/bundle.js";
+  
   private static JavaScriptSourceContext currentSourceContext = JavaScriptSourceContext.FromIntPtr(IntPtr.Zero);
   private static readonly JavaScriptNativeFunction consoleLogDelegate = ConsoleLog;
   private static readonly JavaScriptNativeFunction createCubeDelegate = CreateCube;
@@ -46,13 +49,26 @@ public class HelloWorld : MonoBehaviour {
     return intResult;
   }
 
+  private static float JSValueToFloat(JavaScriptValue value) {
+    JavaScriptValue floatVal;
+    Native.JsConvertValueToNumber(value, out floatVal);
+    double doubleResult;
+    Native.JsNumberToDouble(floatVal, out doubleResult);
+    return (float) doubleResult;
+  }
+
   private static JavaScriptValue CreateCube(JavaScriptValue callee, Boolean isConstructCall, JavaScriptValue[] arguments, ushort argumentCount, IntPtr callbackData) {
-    int x = JSValueToInt(arguments[0]);
-    int y = JSValueToInt(arguments[0]);
-    int z = JSValueToInt(arguments[0]);
+    int x = JSValueToInt(arguments[1]);
+    int y = JSValueToInt(arguments[2]);
+    int z = JSValueToInt(arguments[3]);
+    float r = JSValueToFloat(arguments[4]);
+    float g = JSValueToFloat(arguments[5]);
+    float b = JSValueToFloat(arguments[6]);
+    float a = JSValueToFloat(arguments[7]);
 
     GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
     cube.transform.position = new Vector3(x, y, z);
+    cube.GetComponent<Renderer>().material.color = new Color(r / 255, g / 255, b / 255, a / 255);
 
     return JavaScriptValue.Invalid;
   }
@@ -97,8 +113,7 @@ public class HelloWorld : MonoBehaviour {
     return context;
   }
 
-  // Use this for initialization
-  void Start () {
+  void LoadScript(string script) {
 
     try {
       //
@@ -122,11 +137,6 @@ public class HelloWorld : MonoBehaviour {
 
         using (new JavaScriptContext.Scope(context)) {
           //
-          // Load the script
-          //
-
-          string script = "scene.createCube(0,0,0); console.log(\'Hello world\');";
-          //
           // Run the script.
           //
 
@@ -145,6 +155,13 @@ public class HelloWorld : MonoBehaviour {
     } catch (Exception e) {
       Debug.LogErrorFormat("chakrahost: fatal error: internal error: {0}.", e.Message);
     }
+  }
+
+  // Use this for initialization
+  IEnumerator Start () {
+    WWW www = new WWW(url);
+    yield return www;
+    LoadScript(www.text);
   }
 	
 	// Update is called once per frame
